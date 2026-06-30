@@ -1,1 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중2 직업적성검사 (꿈을 찾는 여행)</title>
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --secondary: #6C5CE7;
+            --bg: #F8F9FA;
+            --text: #2D3436;
+        }
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; color: var(--primary); }
+        .desc { line-height: 1.6; color: #666; margin-bottom: 30px; }
+        .q-card {
+            background: #F1F2F6;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .q-card.active { display: block; }
+        .q-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; }
+        .options { display: flex; flex-direction: column; gap: 10px; }
+        .btn-opt {
+            background: white;
+            border: 2px solid #E4E7EB;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+        .btn-opt:hover { border-color: var(--primary); background: #EBF3FC; }
+        .progress-bar {
+            height: 8px;
+            background: #E4E7EB;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .progress { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+        .result-box { display: none; }
+        .job-card {
+            border-left: 5px solid var(--secondary);
+            background: #F9F8FF;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 0 10px 10px 0;
+        }
+        .btn-main {
+            display: block; width: 100%; padding: 15px;
+            background: var(--primary); color: white; border: none;
+            border-radius: 8px; font-size: 1.1rem; cursor: pointer;
+        }
+        .score-list { margin: 20px 0; padding: 0; list-style: none; }
+        .score-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EEE; }
+    </style>
+</head>
+<body>
 
+<div class="container">
+    <div id="start-view">
+        <h1>나의 직업적성검사</h1>
+        <p class="desc">
+            안녕하세요! 이 검사는 여러분이 가진 다양한 잠재적 능력을 스스로 진단해보고, 미래의 직업 세계를 탐색할 수 있도록 돕는 검사입니다. 
+            시간 제한이 없으니 평소 자신의 행동과 모습을 생각하며 편안하게 답변해 주세요.
+        </p>
+        <button class="btn-main" onclick="startSurvey()">검사 시작하기</button>
+    </div>
+
+    <div id="survey-view" style="display:none;">
+        <div class="progress-bar"><div id="progress" class="progress"></div></div>
+        <div id="question-container"></div>
+    </div>
+
+    <div id="result-view" class="result-box">
+        <h1>검사 결과 프로파일</h1>
+        <p>무궁무진한 가능성을 가진 당신! 가장 높은 점수가 나온 상위 적성 영역과 추천 직업입니다.</p>
+        
+        <h3>📊 나의 적성 점수</h3>
+        <ul id="score-results" class="score-list"></ul>
+
+        <h3>✨ 추천 직업 세계</h3>
+        <div id="job-recommendations"></div>
+        
+        <button class="btn-main" style="margin-top:30px;" onclick="location.reload()">다시 테스트하기</button>
+    </div>
+</div>
+
+<script>
+// 11개 적성 영역 매핑
+const categories = {
+    LANG: "언어능력", MATH: "수리·논리력", SPACE: "공간지각력", BODY: "신체·운동능력",
+    HAND: "손재능", MUSIC: "음악능력", INTER: "대인관계능력", INTRA: "자기성찰능력",
+    NATURE: "자연친화력", CREATIVE: "창의력", ART: "예술시각능력"
+};
+
+// 20문항 (적성 영역별 골고루 배치, 중2 눈높이에 맞춘 행동 예시)
+const questions = [
+    { id: 1, cat: "LANG", q: "책이나 뉴스 기사를 읽고 핵심 내용을 파악하여 친구에게 쉽게 설명할 수 있다." },
+    { id: 2, cat: "MATH", q: "수학 문제나 퍼즐을 풀 때, 여러 가지 논리적인 과정을 거쳐 답을 찾아내는 것이 즐겁다." },
+    { id: 3, cat: "SPACE", q: "처음 가본 길이나 복잡한 건물의 지도를 보고 목적지를 금방 찾아낼 수 있다." },
+    { id: 4, cat: "BODY", q: "체육 시간이나 운동을 할 때, 새로운 몸 동작을 남들보다 빠르게 배우고 따라한다." },
+    { id: 5, cat: "HAND", q: "블록 조립, 미니어처 만들기, 또는 전자기기 분해·조립 등 손으로 하는 정교한 작업을 잘한다." },
+    { id: 6, cat: "MUSIC", q: "한두 번 들은 노래의 멜로디나 리듬을 정확하게 기억하고 따라 부르거나 연주할 수 있다." },
+    { id: 7, cat: "INTER", q: "조별 과제를 할 때 의견이 다른 친구들의 말을 잘 조율하고 협동을 이끌어낸다." },
+    { id: 8, cat: "INTRA", q: "내가 언제 스트레스를 받는지 잘 알고 있으며, 내 감정을 스스로 다스릴 줄 안다." },
+    { id: 9, cat: "NATURE", q: "주변의 식물이나 동물, 혹은 날씨나 환경 변화에 관심이 많고 관찰하는 것을 좋아한다." },
+    { id: 10, cat: "CREATIVE", q: "조별 과제나 수행평가를 할 때 남들이 생각하지 못한 독특하고 새로운 아이디어를 잘 낸다." },
+    { id: 11, cat: "ART", q: "옷을 고르거나 방을 꾸밀 때 색상 조합, 디자인, 공간 배치 등에 민감하고 조화롭게 꾸민다." },
+    { id: 12, cat: "LANG", q: "나의 생각이나 감정을 말이나 글로 표현할 때 단어 선택이 풍부하고 설득력 있게 전달한다." },
+    { id: 13, cat: "MATH", q: "어떤 문제가 발생했을 때 감정에 치우치지 않고 원인과 결과를 이성적으로 분석하려 한다." },
+    { id: 14, cat: "SPACE", q: "입체 도형 전개도를 보거나 가구를 재배치할 때, 머릿속으로 완성된 공간 모습을 쉽게 상상한다." },
+    { id: 15, cat: "BODY", q: "오래달리기, 유연성 등 기초 체력이 좋은 편이며 몸을 움직이는 활동에서 활력을 얻는다." },
+    { id: 16, cat: "HAND", q: "망가진 물건을 고치거나 바느질, 조각 등 세밀한 도구를 다루는 일에 소질이 있다." },
+    { id: 17, cat: "INTER", q: "새로운 환경이나 친구들과 빠르게 친해지며 고민이 있는 친구의 이야기를 잘 들어준다." },
+    { id: 18, cat: "INTRA", q: "나의 장점과 단점이 무엇인지 명확히 알고 있으며, 미래의 목표를 세우고 계획적으로 실천한다." },
+    { id: 19, cat: "NATURE", q: "자연 보호나 지구 온난화 등 환경 문제에 관심이 많고 분리배출 등을 적극적으로 실천한다." },
+    { id: 20, cat: "CREATIVE", q: "문제를 해결할 때 기존의 정해진 방식보다는 나만의 새로운 방식을 시도하는 것을 좋아한다." }
+];
+
+// 직업 데이터베이스 및 관련 이미지 태그 매핑
+const jobData = {
+    LANG: { job: "기자, 소설가, 방송 아나운서, 변호사", desc: "말과 글을 통해 세상을 바꿉니다.", img: "" },
+    MATH: { job: "데이터 분석가, 인공지능 개발자, 금융공학자, 과학자", desc: "수치와 논리로 복잡한 문제를 해결합니다.", img: "" },
+    SPACE: { job: "건축가, 3D 그래픽 디자이너, 항공기 조종사, 도시계획가", desc: "공간을 설계하고 시각화하는 능력이 뛰어납니다.", img: "" },
+    BODY: { job: "스포츠 선수, 물리치료사, 경호원, 댄서", desc: "신체 능력을 발휘하여 역동적인 가치를 만듭니다.", img: "" },
+    HAND: { job: "로봇 공학 기술자, 공예가, 외과의사, 요리사", desc: "손 끝의 정교함으로 새로운 가치를 창조하거나 치유합니다.", img: "" },
+    MUSIC: { job: "음악 프로듀서, 작곡가, 사운드 디자이너, 보컬 트레이너", desc: "소리와 음악으로 사람들의 감성을 자극합니다.", img: "" },
+    INTER: { job: "인사관리 전문가, 심리상담사, 외교관, 마케터", desc: "사람의 마음을 읽고 조직을 조화롭게 이끕니다.", img: "" },
+    INTRA: { job: "경영컨설턴트, 평생교육 기획자, 자기계획가", desc: "자신을 완벽히 통제하고 타인의 성장을 돕는 나침반 역할을 합니다.", img: "" },
+    NATURE: { job: "생태학 연구원, 수의사, 원예치료사, 기후변화 전문가", desc: "자연 및 생명체와 소통하며 지구를 지킵니다.", img: "" },
+    CREATIVE: { job: "광고 기획자(AE), 스타트업 창업가, 게임 기획자", desc: "고정관념을 깨는 아이디어로 새로운 세상을 엽니다.", img: "" },
+    ART: { job: "영화 감독, 웹툰 작가, 일러스트레이터, UI/UX 디자이너", desc: "시각적 아름다움과 감각으로 세상을 다채롭게 물들입니다.", img: " " }
+};
+
+let currentQ = 0;
+const scores = {};
+// 모든 영역 점수 초기화
+Object.keys(categories).forEach(k => scores[k] = 0);
+
+function startSurvey() {
+    document.getElementById('start-view').style.display = 'none';
+    document.getElementById('survey-view').style.display = 'block';
+    renderQuestion();
+}
+
+function renderQuestion() {
+    if(currentQ >= questions.length) {
+        showResult();
+        return;
+    }
+    
+    const q = questions[currentQ];
+    const progress = ((currentQ) / questions.length) * 100;
+    document.getElementById('progress').style.style = `width: ${progress}%`;
+    document.getElementById('progress').style.width = progress + '%';
+
+    const html = `
+        <div class="q-card active">
+            <span style="color:var(--primary); font-weight:bold;">Q${currentQ+1}/${questions.length}</span>
+            <div class="q-title">${q.q}</div>
+            <div class="options">
+                <button class="btn-opt" onclick="submitAnswer('${q.cat}', 5)">매우 그렇다 (5점)</button>
+                <button class="btn-opt" onclick="submitAnswer('${q.cat}', 4)">전반적으로 그렇다 (4점)</button>
+                <button class="btn-opt" onclick="submitAnswer('${q.cat}', 3)">보통이다 (3점)</button>
+                <button class="btn-opt" onclick="submitAnswer('${q.cat}', 2)">약간 아니다 (25점)</button>
+                <button class="btn-opt" onclick="submitAnswer('${q.cat}', 1)">전혀 아니다 (1점)</button>
+            </div>
+        </div>
+    `;
+    document.getElementById('question-container').innerHTML = html;
+}
+
+function submitAnswer(cat, score) {
+    scores[cat] += score;
+    currentQ++;
+    renderQuestion();
+}
+
+function showResult() {
+    document.getElementById('survey-view').style.display = 'none';
+    document.getElementById('result-view').style.display = 'block';
+
+    // 점수 정렬
+    const sortedScores = Object.keys(scores).map(key => {
+        return { key: key, name: categories[key], score: scores[key] };
+    }).sort((a, b) => b.score - a.score);
+
+    // 점수 리스트 출력
+    const scoreList = document.getElementById('score-results');
+    scoreList.innerHTML = '';
+    sortedScores.forEach(item => {
+        let level = "보통";
+        if(item.score >= 9) level = "매우 높음";
+        else if(item.score >= 7) level = "높음";
+        else if(item.score >= 5) level = "보통";
+        else if(item.score >= 3) level = "약간 낮음";
+        else level = "낮음";
+
+        scoreList.innerHTML += `<li class="score-item"><strong>${item.name}</strong> <span>${item.score}점 (${level})</span></li>`;
+    });
+
+    // 상위 2개 영역 추출 및 추천
+    const top2 = sortedScores.slice(0, 2);
+    const recBox = document.getElementById('job-recommendations');
+    recBox.innerHTML = '';
+
+    top2.forEach(top => {
+        const data = jobData[top.key];
+        recBox.innerHTML += `
+            <div class="job-card">
+                <h4>🎯 추천 영역: ${top.name}</h4>
+                <p><strong>특징:</strong> ${data.desc}</p>
+                <p><strong>추천 직업군:</strong> ${data.job}</p>
+                <div style="margin-top:10px; color:#777; font-size:0.9rem;">
+                   🎨 관련 직업 환경 예시 이미지 가이드:<br>
+                   <strong>${data.img}</strong>
+                </div>
+            </div>
+        `;
+    });
+}
+</script>
+
+</body>
+</html>
